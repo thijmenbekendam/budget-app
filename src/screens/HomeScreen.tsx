@@ -4,15 +4,12 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { PieChart } from 'react-native-chart-kit';
+import PieChart from '../components/PieChart';
 import { loadExpenses } from '../storage';
 import { Category, CATEGORY_COLORS, Expense } from '../types';
-
-const screenWidth = Dimensions.get('window').width;
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
@@ -35,8 +32,6 @@ export default function HomeScreen() {
     name,
     amount,
     color: CATEGORY_COLORS[name as Category],
-    legendFontColor: '#333',
-    legendFontSize: 12,
   }));
 
   const recent = expenses.slice(0, 5);
@@ -51,18 +46,7 @@ export default function HomeScreen() {
       {chartData.length > 0 ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Spending by Category</Text>
-          <PieChart
-            data={chartData}
-            width={screenWidth - 32}
-            height={200}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            }}
-            accessor="amount"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
+          <PieChart data={chartData} />
         </View>
       ) : (
         <View style={styles.emptyChart}>
