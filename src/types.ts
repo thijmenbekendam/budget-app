@@ -11,6 +11,7 @@ export interface Schuld {
 }
 
 export interface VermogenSnapshot {
+  id: string;
   monthKey: string;
   label: string;
   savedAt: string;

@@ -76,9 +76,11 @@ export default function VermogenScreen() {
   const saveSnapshot = () => {
     if (totalCryptoEur === null) return;
     const now = new Date();
+    const id = uuidv4();
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const label = now.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
     const snapshot: VermogenSnapshot = {
+      id,
       monthKey,
       label,
       savedAt: now.toISOString(),
@@ -88,20 +90,24 @@ export default function VermogenScreen() {
       schulden: totalSchulden,
       netWorth: data.spaargeld + totalCryptoEur - totalSchulden,
     };
-    const history = [snapshot, ...data.history.filter((h) => h.monthKey !== monthKey)].sort(
-      (a, b) => b.monthKey.localeCompare(a.monthKey)
+    const history = [snapshot, ...data.history].sort(
+      (a, b) => b.savedAt.localeCompare(a.savedAt)
     );
     persist({ ...data, history });
-    // Auto-expand the freshly saved snapshot
-    setExpandedSnaps((prev) => new Set(prev).add(monthKey));
+    setExpandedSnaps((prev) => new Set(prev).add(id));
     setSavedMsg('Opgeslagen!');
     setTimeout(() => setSavedMsg(''), 2500);
   };
 
-  const toggleSnap = (key: string) =>
+  const deleteSnapshot = (id: string) => {
+    persist({ ...data, history: data.history.filter((s) => s.id !== id) });
+    setExpandedSnaps((prev) => { const next = new Set(prev); next.delete(id); return next; });
+  };
+
+  const toggleSnap = (id: string) =>
     setExpandedSnaps((prev) => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
 
@@ -267,34 +273,41 @@ export default function VermogenScreen() {
             📈 Geschiedenis
           </div>
           {data.history.map((snap) => {
-            const open = expandedSnaps.has(snap.monthKey);
+            const open = expandedSnaps.has(snap.id);
             return (
-              <div key={snap.monthKey} style={card}>
+              <div key={snap.id} style={card}>
                 {/* Header row — always visible */}
-                <button
-                  onClick={() => toggleSnap(snap.monthKey)}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', padding: 0 }}
-                >
-                  <div style={{ flex: 1, textAlign: 'left' }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: '#222', textTransform: 'capitalize' }}>
-                      {snap.label}
-                    </div>
-                    {snap.savedAt && (
-                      <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
-                        opgeslagen op {formatSavedAt(snap.savedAt)}
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <button
+                    onClick={() => toggleSnap(snap.id)}
+                    style={{ display: 'flex', alignItems: 'center', flex: 1, background: 'none', padding: 0, textAlign: 'left' }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: '#222', textTransform: 'capitalize' }}>
+                        {snap.label}
                       </div>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: '#4A90E2', marginRight: 10 }}>
-                    {formatEuro(snap.netWorth)}
-                  </span>
-                  <span style={{
-                    fontSize: 14, color: '#aaa',
-                    transform: open ? 'rotate(180deg)' : 'none',
-                    transition: 'transform 0.2s',
-                    flexShrink: 0,
-                  }}>▾</span>
-                </button>
+                      {snap.savedAt && (
+                        <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
+                          opgeslagen op {formatSavedAt(snap.savedAt)}
+                        </div>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: '#4A90E2', marginRight: 8 }}>
+                      {formatEuro(snap.netWorth)}
+                    </span>
+                    <span style={{
+                      fontSize: 14, color: '#aaa',
+                      transform: open ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 0.2s',
+                      flexShrink: 0, marginRight: 8,
+                    }}>▾</span>
+                  </button>
+                  <button
+                    onClick={() => deleteSnapshot(snap.id)}
+                    style={{ color: '#ddd', fontSize: 16, padding: '4px 2px', flexShrink: 0 }}
+                    title="Verwijder snapshot"
+                  >✕</button>
+                </div>
 
                 {/* Expanded details */}
                 {open && (
