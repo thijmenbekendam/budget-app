@@ -1,100 +1,72 @@
-import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-} from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { deleteExpense, loadExpenses } from '../storage';
-import { CATEGORY_COLORS, Expense } from '../types';
+import React from 'react';
+import { Expense, CATEGORY_COLORS } from '../types';
 import { formatEuro } from '../utils';
 
-export default function ExpenseListScreen() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadExpenses().then(setExpenses);
-    }, [])
-  );
-
-  const handleDelete = (id: string) => {
-    Alert.alert('Delete expense', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          const updated = await deleteExpense(id);
-          setExpenses(updated);
-        },
-      },
-    ]);
-  };
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  return (
-    <View style={styles.container}>
-      {expenses.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>No expenses yet</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={expenses}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View style={styles.row}>
-              <View style={[styles.dot, { backgroundColor: CATEGORY_COLORS[item.category] }]} />
-              <View style={styles.info}>
-                <Text style={styles.desc}>{item.description || item.category}</Text>
-                <Text style={styles.meta}>
-                  {item.category} · {formatDate(item.date)}
-                </Text>
-              </View>
-              <Text style={styles.amount}>{formatEuro(item.amount)}</Text>
-              <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
-                <Text style={styles.deleteText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        />
-      )}
-    </View>
-  );
+interface Props {
+  expenses: Expense[];
+  onDelete: (id: string) => void;
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  list: { padding: 16 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: '#999', fontSize: 16 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  dot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  info: { flex: 1 },
-  desc: { fontSize: 14, fontWeight: '600', color: '#333' },
-  meta: { fontSize: 12, color: '#999', marginTop: 2 },
-  amount: { fontSize: 14, fontWeight: '700', color: '#333', marginRight: 12 },
-  deleteBtn: { padding: 4 },
-  deleteText: { color: '#ccc', fontSize: 16 },
-});
+export default function ExpenseListScreen({ expenses, onDelete }: Props) {
+  const handleDelete = (id: string) => {
+    if (window.confirm('Delete this expense?')) {
+      onDelete(id);
+    }
+  };
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+
+  if (expenses.length === 0) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: 80 }}>
+        <span style={{ color: '#999', fontSize: 16 }}>No expenses yet</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: 16, paddingBottom: 24 }}>
+      {expenses.map((item) => (
+        <div
+          key={item.id}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: '#fff',
+            borderRadius: 10,
+            padding: 14,
+            marginBottom: 10,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
+          }}
+        >
+          <div
+            style={{
+              width: 10, height: 10, borderRadius: '50%',
+              background: CATEGORY_COLORS[item.category], marginRight: 12, flexShrink: 0,
+            }}
+          />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>
+              {item.description || item.category}
+            </div>
+            <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+              {item.category} · {formatDate(item.date)}
+            </div>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#333', marginRight: 12 }}>
+            {formatEuro(item.amount)}
+          </span>
+          <button
+            onClick={() => handleDelete(item.id)}
+            style={{ color: '#ccc', fontSize: 16, padding: 4 }}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}

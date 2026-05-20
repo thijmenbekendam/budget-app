@@ -1,33 +1,20 @@
-import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import React, { useState } from 'react';
 import PieChart from '../components/PieChart';
-import { loadExpenses } from '../storage';
-import { Category, CATEGORY_COLORS, Expense } from '../types';
+import { Expense, Category, CATEGORY_COLORS } from '../types';
 import { formatEuro, getPeriodStart } from '../utils';
 
 type Period = 'week' | 'month';
 
-export default function HomeScreen() {
-  const navigation = useNavigation<any>();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [period, setPeriod] = useState<Period>('month');
+interface Props {
+  expenses: Expense[];
+  onAdd: () => void;
+}
 
-  useFocusEffect(
-    useCallback(() => {
-      loadExpenses().then(setExpenses);
-    }, [])
-  );
+export default function HomeScreen({ expenses, onAdd }: Props) {
+  const [period, setPeriod] = useState<Period>('month');
 
   const periodStart = getPeriodStart(period);
   const filtered = expenses.filter((e) => new Date(e.date) >= periodStart);
-
   const total = filtered.reduce((sum, e) => sum + e.amount, 0);
 
   const byCategory = filtered.reduce<Record<string, number>>((acc, e) => {
@@ -44,141 +31,117 @@ export default function HomeScreen() {
   const recent = filtered.slice(0, 5);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.totalCard}>
-        <View style={styles.toggle}>
-          <TouchableOpacity
-            style={[styles.toggleBtn, period === 'week' && styles.toggleBtnActive]}
-            onPress={() => setPeriod('week')}
-          >
-            <Text style={[styles.toggleText, period === 'week' && styles.toggleTextActive]}>
-              Week
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleBtn, period === 'month' && styles.toggleBtnActive]}
-            onPress={() => setPeriod('month')}
-          >
-            <Text style={[styles.toggleText, period === 'month' && styles.toggleTextActive]}>
-              Month
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.totalLabel}>
+    <div style={{ padding: 16, paddingBottom: 24 }}>
+      {/* Total card */}
+      <div style={card('#4A90E2', 24)}>
+        {/* Toggle */}
+        <div style={{
+          display: 'flex',
+          background: 'rgba(0,0,0,0.15)',
+          borderRadius: 20,
+          padding: 3,
+          marginBottom: 16,
+          alignSelf: 'center',
+        }}>
+          {(['week', 'month'] as Period[]).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              style={{
+                padding: '6px 20px',
+                borderRadius: 18,
+                fontSize: 13,
+                fontWeight: 600,
+                background: period === p ? '#fff' : 'transparent',
+                color: period === p ? '#4A90E2' : 'rgba(255,255,255,0.75)',
+              }}
+            >
+              {p === 'week' ? 'Week' : 'Month'}
+            </button>
+          ))}
+        </div>
+        <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>
           {period === 'week' ? 'This Week' : 'This Month'}
-        </Text>
-        <Text style={styles.totalAmount}>{formatEuro(total)}</Text>
-      </View>
+        </span>
+        <span style={{ color: '#fff', fontSize: 36, fontWeight: 700, marginTop: 4 }}>
+          {formatEuro(total)}
+        </span>
+      </div>
 
+      {/* Chart */}
       {chartData.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Spending by Category</Text>
+        <div style={card('#fff', 16)}>
+          <span style={sectionTitle}>Spending by Category</span>
           <PieChart data={chartData} />
-        </View>
+        </div>
       ) : (
-        <View style={styles.emptyChart}>
-          <Text style={styles.emptyText}>No expenses this {period}</Text>
-          <Text style={styles.emptySubtext}>Add your first expense to see a chart</Text>
-        </View>
+        <div style={{ ...card('#fff', 32), alignItems: 'center' }}>
+          <span style={{ color: '#999', fontSize: 14 }}>No expenses this {period}</span>
+          <span style={{ color: '#bbb', fontSize: 12, marginTop: 4 }}>
+            Add your first expense to see a chart
+          </span>
+        </div>
       )}
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Expenses</Text>
+      {/* Recent */}
+      <div style={card('#fff', 16)}>
+        <span style={sectionTitle}>Recent Expenses</span>
         {recent.length === 0 ? (
-          <Text style={styles.emptyText}>Nothing here yet</Text>
+          <span style={{ color: '#999', fontSize: 14 }}>Nothing here yet</span>
         ) : (
           recent.map((e) => (
-            <View key={e.id} style={styles.expenseRow}>
-              <View style={[styles.dot, { backgroundColor: CATEGORY_COLORS[e.category] }]} />
-              <View style={styles.expenseInfo}>
-                <Text style={styles.expenseDesc}>{e.description || e.category}</Text>
-                <Text style={styles.expenseCat}>{e.category}</Text>
-              </View>
-              <Text style={styles.expenseAmount}>{formatEuro(e.amount)}</Text>
-            </View>
+            <div key={e.id} style={{
+              display: 'flex',
+              alignItems: 'center',
+              paddingTop: 10,
+              paddingBottom: 10,
+              borderBottom: '1px solid #f0f0f0',
+            }}>
+              <div style={{
+                width: 10, height: 10, borderRadius: '50%',
+                background: CATEGORY_COLORS[e.category], marginRight: 12, flexShrink: 0,
+              }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, color: '#333', fontWeight: 500 }}>
+                  {e.description || e.category}
+                </div>
+                <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{e.category}</div>
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>
+                {formatEuro(e.amount)}
+              </span>
+            </div>
           ))
         )}
-      </View>
+      </div>
 
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => navigation.navigate('AddExpense')}
+      <button
+        onClick={onAdd}
+        style={{
+          width: '100%', background: '#4A90E2', color: '#fff', borderRadius: 12,
+          padding: 16, fontSize: 16, fontWeight: 600, marginTop: 8,
+        }}
       >
-        <Text style={styles.addButtonText}>+ Add Expense</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        + Add Expense
+      </button>
+    </div>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { padding: 16, paddingBottom: 32 },
-  totalCard: {
-    backgroundColor: '#4A90E2',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  toggle: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    borderRadius: 20,
-    padding: 3,
-    marginBottom: 16,
-  },
-  toggleBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 6,
-    borderRadius: 18,
-  },
-  toggleBtnActive: {
-    backgroundColor: '#fff',
-  },
-  toggleText: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  toggleTextActive: {
-    color: '#4A90E2',
-  },
-  totalLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
-  totalAmount: { color: '#fff', fontSize: 36, fontWeight: 'bold', marginTop: 4 },
-  section: {
-    backgroundColor: '#fff',
+function card(bg: string, padding: number): React.CSSProperties {
+  return {
+    background: bg,
     borderRadius: 12,
-    padding: 16,
+    padding,
     marginBottom: 16,
-  },
-  sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: '#222' },
-  emptyChart: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 32,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  emptyText: { color: '#999', fontSize: 14, textAlign: 'center' },
-  emptySubtext: { color: '#bbb', fontSize: 12, marginTop: 4, textAlign: 'center' },
-  expenseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  dot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  expenseInfo: { flex: 1 },
-  expenseDesc: { fontSize: 14, color: '#333', fontWeight: '500' },
-  expenseCat: { fontSize: 12, color: '#999', marginTop: 2 },
-  expenseAmount: { fontSize: 14, fontWeight: '600', color: '#333' },
-  addButton: {
-    backgroundColor: '#4A90E2',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  addButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-});
+    display: 'flex',
+    flexDirection: 'column',
+  };
+}
+
+const sectionTitle: React.CSSProperties = {
+  fontSize: 16,
+  fontWeight: 600,
+  marginBottom: 12,
+  color: '#222',
+};
