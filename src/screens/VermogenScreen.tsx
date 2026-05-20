@@ -430,6 +430,7 @@ export default function VermogenScreen() {
 }
 
 function fmtQty(n: number): string {
+  if (n == null || isNaN(n)) return '0';
   if (n >= 1000) return n.toLocaleString('nl-NL', { maximumFractionDigits: 2 });
   if (n >= 1) return n.toLocaleString('nl-NL', { maximumFractionDigits: 4 });
   return n.toLocaleString('nl-NL', { maximumSignificantDigits: 4 });

@@ -21,7 +21,18 @@ const VERMOGEN_DEFAULT: VermogenData = { spaargeld: 0, cryptoHoldings: [], schul
 export function loadVermogen(): VermogenData {
   try {
     const raw = localStorage.getItem(VERMOGEN_KEY);
-    return raw ? (JSON.parse(raw) as VermogenData) : VERMOGEN_DEFAULT;
+    if (!raw) return VERMOGEN_DEFAULT;
+    const data = JSON.parse(raw) as VermogenData;
+    // Drop holdings from the old format (had amountUsd, no symbol/amount/coinId)
+    data.cryptoHoldings = (data.cryptoHoldings ?? []).filter(
+      (h) => h.symbol != null && h.amount != null && h.coinId != null
+    );
+    // Ensure every snapshot has an id (old snapshots pre-dated the id field)
+    data.history = (data.history ?? []).map((s) =>
+      s.id ? s : { ...s, id: crypto.randomUUID() }
+    );
+    data.schulden = data.schulden ?? [];
+    return data;
   } catch {
     return VERMOGEN_DEFAULT;
   }
