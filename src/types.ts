@@ -13,6 +13,7 @@ export interface Schuld {
 export interface VermogenSnapshot {
   monthKey: string;
   label: string;
+  savedAt: string;
   spaargeld: number;
   cryptoEur: number;
   schulden: number;

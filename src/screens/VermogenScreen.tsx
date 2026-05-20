@@ -81,6 +81,7 @@ export default function VermogenScreen() {
     const snapshot: VermogenSnapshot = {
       monthKey,
       label,
+      savedAt: now.toISOString(),
       spaargeld: data.spaargeld,
       cryptoEur: totalCryptoEur,
       schulden: totalSchulden,
@@ -274,7 +275,7 @@ export default function VermogenScreen() {
                   borderTop: i === 0 ? '1px solid #f0f0f0' : undefined,
                   borderBottom: '1px solid #f0f0f0',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: '#333', textTransform: 'capitalize' }}>
                       {snap.label}
                     </span>
@@ -282,6 +283,11 @@ export default function VermogenScreen() {
                       {formatEuro(snap.netWorth)}
                     </span>
                   </div>
+                  {snap.savedAt && (
+                    <div style={{ fontSize: 11, color: '#bbb', marginBottom: 6 }}>
+                      opgeslagen op {formatSavedAt(snap.savedAt)}
+                    </div>
+                  )}
                   <div style={{ fontSize: 12, color: '#999', display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span>Spaargeld: {formatEuro(snap.spaargeld)}</span>
                     <span>Crypto: {formatEuro(snap.cryptoEur)}</span>
@@ -295,6 +301,13 @@ export default function VermogenScreen() {
       )}
     </div>
   );
+}
+
+function formatSavedAt(iso: string): string {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+  const time = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  return `${date} om ${time}`;
 }
 
 function BreakdownRow({
