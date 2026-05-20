@@ -1,3 +1,31 @@
+export interface CryptoHolding {
+  id: string;
+  name: string;
+  amountUsd: number;
+}
+
+export interface Schuld {
+  id: string;
+  name: string;
+  amountEur: number;
+}
+
+export interface VermogenSnapshot {
+  monthKey: string;
+  label: string;
+  spaargeld: number;
+  cryptoEur: number;
+  schulden: number;
+  netWorth: number;
+}
+
+export interface VermogenData {
+  spaargeld: number;
+  cryptoHoldings: CryptoHolding[];
+  schulden: Schuld[];
+  history: VermogenSnapshot[];
+}
+
 export type Category =
   | 'Food'
   | 'Groceries'
