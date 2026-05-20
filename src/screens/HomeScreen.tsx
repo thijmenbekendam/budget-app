@@ -10,10 +10,14 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import PieChart from '../components/PieChart';
 import { loadExpenses } from '../storage';
 import { Category, CATEGORY_COLORS, Expense } from '../types';
+import { formatEuro, getPeriodStart } from '../utils';
+
+type Period = 'week' | 'month';
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [period, setPeriod] = useState<Period>('month');
 
   useFocusEffect(
     useCallback(() => {
@@ -21,9 +25,12 @@ export default function HomeScreen() {
     }, [])
   );
 
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const periodStart = getPeriodStart(period);
+  const filtered = expenses.filter((e) => new Date(e.date) >= periodStart);
 
-  const byCategory = expenses.reduce<Record<string, number>>((acc, e) => {
+  const total = filtered.reduce((sum, e) => sum + e.amount, 0);
+
+  const byCategory = filtered.reduce<Record<string, number>>((acc, e) => {
     acc[e.category] = (acc[e.category] || 0) + e.amount;
     return acc;
   }, {});
@@ -34,13 +41,33 @@ export default function HomeScreen() {
     color: CATEGORY_COLORS[name as Category],
   }));
 
-  const recent = expenses.slice(0, 5);
+  const recent = filtered.slice(0, 5);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.totalCard}>
-        <Text style={styles.totalLabel}>Total Spent</Text>
-        <Text style={styles.totalAmount}>${total.toFixed(2)}</Text>
+        <View style={styles.toggle}>
+          <TouchableOpacity
+            style={[styles.toggleBtn, period === 'week' && styles.toggleBtnActive]}
+            onPress={() => setPeriod('week')}
+          >
+            <Text style={[styles.toggleText, period === 'week' && styles.toggleTextActive]}>
+              Week
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleBtn, period === 'month' && styles.toggleBtnActive]}
+            onPress={() => setPeriod('month')}
+          >
+            <Text style={[styles.toggleText, period === 'month' && styles.toggleTextActive]}>
+              Month
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.totalLabel}>
+          {period === 'week' ? 'This Week' : 'This Month'}
+        </Text>
+        <Text style={styles.totalAmount}>{formatEuro(total)}</Text>
       </View>
 
       {chartData.length > 0 ? (
@@ -50,7 +77,7 @@ export default function HomeScreen() {
         </View>
       ) : (
         <View style={styles.emptyChart}>
-          <Text style={styles.emptyText}>No expenses yet</Text>
+          <Text style={styles.emptyText}>No expenses this {period}</Text>
           <Text style={styles.emptySubtext}>Add your first expense to see a chart</Text>
         </View>
       )}
@@ -67,7 +94,7 @@ export default function HomeScreen() {
                 <Text style={styles.expenseDesc}>{e.description || e.category}</Text>
                 <Text style={styles.expenseCat}>{e.category}</Text>
               </View>
-              <Text style={styles.expenseAmount}>${e.amount.toFixed(2)}</Text>
+              <Text style={styles.expenseAmount}>{formatEuro(e.amount)}</Text>
             </View>
           ))
         )}
@@ -93,8 +120,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  toggle: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    borderRadius: 20,
+    padding: 3,
+    marginBottom: 16,
+  },
+  toggleBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    borderRadius: 18,
+  },
+  toggleBtnActive: {
+    backgroundColor: '#fff',
+  },
+  toggleText: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  toggleTextActive: {
+    color: '#4A90E2',
+  },
   totalLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
-  totalAmount: { color: '#fff', fontSize: 40, fontWeight: 'bold', marginTop: 4 },
+  totalAmount: { color: '#fff', fontSize: 36, fontWeight: 'bold', marginTop: 4 },
   section: {
     backgroundColor: '#fff',
     borderRadius: 12,

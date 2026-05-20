@@ -10,6 +10,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { deleteExpense, loadExpenses } from '../storage';
 import { CATEGORY_COLORS, Expense } from '../types';
+import { formatEuro } from '../utils';
 
 export default function ExpenseListScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -59,7 +60,7 @@ export default function ExpenseListScreen() {
                   {item.category} · {formatDate(item.date)}
                 </Text>
               </View>
-              <Text style={styles.amount}>${item.amount.toFixed(2)}</Text>
+              <Text style={styles.amount}>{formatEuro(item.amount)}</Text>
               <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
                 <Text style={styles.deleteText}>✕</Text>
               </TouchableOpacity>

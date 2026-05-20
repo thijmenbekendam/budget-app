@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { formatEuro } from '../utils';
 
 interface Slice {
   name: string;
@@ -54,7 +55,7 @@ export default function PieChart({ data, size = 180 }: Props) {
           <View key={s.name} style={styles.legendRow}>
             <View style={[styles.dot, { backgroundColor: s.color }]} />
             <Text style={styles.legendLabel}>{s.name}</Text>
-            <Text style={styles.legendValue}>${s.amount.toFixed(2)}</Text>
+            <Text style={styles.legendValue}>{formatEuro(s.amount)}</Text>
           </View>
         ))}
       </View>
