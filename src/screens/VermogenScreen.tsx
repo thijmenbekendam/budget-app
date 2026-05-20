@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { VermogenData, CryptoHolding, Schuld, VermogenSnapshot } from '../types';
 import { formatEuro } from '../utils';
 import { loadVermogen, saveVermogen } from '../storage';
+import NetWorthChart from '../components/NetWorthChart';
 
 export default function VermogenScreen() {
   const [data, setData] = useState<VermogenData>(() => loadVermogen());
@@ -265,6 +266,14 @@ export default function VermogenScreen() {
       >
         {savedMsg || '📸 Maandelijkse snapshot opslaan'}
       </button>
+
+      {/* Net worth chart */}
+      {data.history.length > 0 && (
+        <div style={{ ...card, marginBottom: 16 }}>
+          <span style={{ ...cardTitle, marginBottom: 16 }}>📈 Vermogen over tijd</span>
+          <NetWorthChart snapshots={data.history} />
+        </div>
+      )}
 
       {/* History */}
       {data.history.length > 0 && (
