@@ -2,6 +2,7 @@ export type Category =
   | 'Food'
   | 'Groceries'
   | 'Transport'
+  | 'Gas'
   | 'Housing'
   | 'Entertainment'
   | 'Going out'
@@ -23,6 +24,7 @@ export const CATEGORIES: Category[] = [
   'Food',
   'Groceries',
   'Transport',
+  'Gas',
   'Housing',
   'Entertainment',
   'Going out',
@@ -37,6 +39,7 @@ export const CATEGORY_COLORS: Record<Category, string> = {
   Food: '#FF6B6B',
   Groceries: '#FF9F43',
   Transport: '#4ECDC4',
+  Gas: '#E17055',
   Housing: '#45B7D1',
   Entertainment: '#96CEB4',
   'Going out': '#A29BFE',
