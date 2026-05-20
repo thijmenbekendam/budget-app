@@ -3,10 +3,11 @@ import './App.css';
 import HomeScreen from './screens/HomeScreen';
 import AddExpenseScreen from './screens/AddExpenseScreen';
 import ExpenseListScreen from './screens/ExpenseListScreen';
+import OverviewScreen from './screens/OverviewScreen';
 import { loadExpenses, saveExpenses } from './storage';
 import { Expense } from './types';
 
-type Screen = 'home' | 'expenses' | 'add';
+type Screen = 'home' | 'expenses' | 'overview' | 'add';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
@@ -40,7 +41,7 @@ export default function App() {
           <>
             <div className="app-header-spacer" />
             <span className="app-header-title">
-              {screen === 'home' ? 'Budget App' : 'All Expenses'}
+              {screen === 'home' ? 'Budget App' : screen === 'expenses' ? 'All Expenses' : 'Overview'}
             </span>
             <div className="app-header-spacer" />
           </>
@@ -53,6 +54,9 @@ export default function App() {
         )}
         {screen === 'expenses' && (
           <ExpenseListScreen expenses={expenses} onDelete={handleDelete} />
+        )}
+        {screen === 'overview' && (
+          <OverviewScreen expenses={expenses} />
         )}
         {screen === 'add' && (
           <AddExpenseScreen onSave={handleSave} onCancel={() => setScreen('home')} />
@@ -74,6 +78,13 @@ export default function App() {
           >
             <span className="nav-icon">📋</span>
             <span className="nav-label">Expenses</span>
+          </button>
+          <button
+            className={`nav-btn${screen === 'overview' ? ' active' : ''}`}
+            onClick={() => setScreen('overview')}
+          >
+            <span className="nav-icon">📅</span>
+            <span className="nav-label">Overview</span>
           </button>
         </nav>
       )}

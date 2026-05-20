@@ -11,6 +11,7 @@ export default function AddExpenseScreen({ onSave }: Props) {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Category>('Food');
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [error, setError] = useState('');
 
   const handleSave = () => {
@@ -25,7 +26,7 @@ export default function AddExpenseScreen({ onSave }: Props) {
       amount: parsed,
       category,
       description: description.trim(),
-      date: new Date().toISOString(),
+      date: new Date(date + 'T12:00:00').toISOString(),
     });
   };
 
@@ -51,6 +52,16 @@ export default function AddExpenseScreen({ onSave }: Props) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="e.g. Grocery run"
+          style={inputStyle}
+        />
+      </div>
+
+      <div style={fieldGroup}>
+        <label style={labelStyle}>Date</label>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
           style={inputStyle}
         />
       </div>
