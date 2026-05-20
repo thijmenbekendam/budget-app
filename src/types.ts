@@ -1,9 +1,12 @@
 export type Category =
   | 'Food'
+  | 'Groceries'
   | 'Transport'
   | 'Housing'
   | 'Entertainment'
-  | 'Health'
+  | 'Going out'
+  | 'Drinks'
+  | 'Holiday'
   | 'Shopping'
   | 'Fixed costs'
   | 'Other';
@@ -18,10 +21,13 @@ export interface Expense {
 
 export const CATEGORIES: Category[] = [
   'Food',
+  'Groceries',
   'Transport',
   'Housing',
   'Entertainment',
-  'Health',
+  'Going out',
+  'Drinks',
+  'Holiday',
   'Shopping',
   'Fixed costs',
   'Other',
@@ -29,10 +35,13 @@ export const CATEGORIES: Category[] = [
 
 export const CATEGORY_COLORS: Record<Category, string> = {
   Food: '#FF6B6B',
+  Groceries: '#FF9F43',
   Transport: '#4ECDC4',
   Housing: '#45B7D1',
   Entertainment: '#96CEB4',
-  Health: '#FFEAA7',
+  'Going out': '#A29BFE',
+  Drinks: '#FD79A8',
+  Holiday: '#FDCB6E',
   Shopping: '#DDA0DD',
   'Fixed costs': '#F0A500',
   Other: '#98D8C8',
