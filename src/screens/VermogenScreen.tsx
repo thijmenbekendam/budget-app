@@ -5,14 +5,28 @@ import { formatEuro } from '../utils';
 import { loadVermogen, saveVermogen } from '../storage';
 import NetWorthChart from '../components/NetWorthChart';
 
+// Maps common ticker symbols to CoinGecko coin IDs
+const TICKER_TO_ID: Record<string, string> = {
+  BTC: 'bitcoin', ETH: 'ethereum', BNB: 'binancecoin', XRP: 'ripple',
+  SOL: 'solana', ADA: 'cardano', DOGE: 'dogecoin', DOT: 'polkadot',
+  MATIC: 'matic-network', LINK: 'chainlink', AVAX: 'avalanche-2',
+  SHIB: 'shiba-inu', LTC: 'litecoin', UNI: 'uniswap', ATOM: 'cosmos',
+  XLM: 'stellar', ALGO: 'algorand', VET: 'vechain', TRX: 'tron',
+  ETC: 'ethereum-classic', XMR: 'monero', BCH: 'bitcoin-cash',
+  NEAR: 'near', ICP: 'internet-computer', APT: 'aptos',
+  ARB: 'arbitrum', OP: 'optimism', TON: 'the-open-network',
+  SUI: 'sui', PEPE: 'pepe', WLD: 'worldcoin-wld',
+};
+
 export default function VermogenScreen() {
   const [data, setData] = useState<VermogenData>(() => loadVermogen());
   const [spaargeldInput, setSpaargeldInput] = useState(() =>
     data.spaargeld > 0 ? String(data.spaargeld) : ''
   );
 
-  const [newCryptoName, setNewCryptoName] = useState('');
-  const [newCryptoUsd, setNewCryptoUsd] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newSymbol, setNewSymbol] = useState('');
+  const [newAmount, setNewAmount] = useState('');
 
   const [newSchuldName, setNewSchuldName] = useState('');
   const [newSchuldEur, setNewSchuldEur] = useState('');
@@ -20,8 +34,29 @@ export default function VermogenScreen() {
   const [usdEur, setUsdEur] = useState<number | null>(null);
   const [rateError, setRateError] = useState(false);
 
+  // coinId -> USD price
+  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [pricesLoading, setPricesLoading] = useState(false);
+
   const [expandedSnaps, setExpandedSnaps] = useState<Set<string>>(new Set());
   const [savedMsg, setSavedMsg] = useState('');
+
+  const fetchPrices = (holdings: CryptoHolding[]) => {
+    const ids = [...new Set(holdings.map((h) => h.coinId))];
+    if (ids.length === 0) return;
+    setPricesLoading(true);
+    fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd`)
+      .then((r) => r.json())
+      .then((json) => {
+        const p: Record<string, number> = {};
+        for (const id of ids) {
+          if (json[id]?.usd != null) p[id] = json[id].usd;
+        }
+        setPrices((prev) => ({ ...prev, ...p }));
+      })
+      .catch(() => {})
+      .finally(() => setPricesLoading(false));
+  };
 
   useEffect(() => {
     fetch('https://open.er-api.com/v6/latest/USD')
@@ -31,7 +66,9 @@ export default function VermogenScreen() {
         else setRateError(true);
       })
       .catch(() => setRateError(true));
-  }, []);
+
+    fetchPrices(data.cryptoHoldings);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const persist = (next: VermogenData) => {
     setData(next);
@@ -46,12 +83,17 @@ export default function VermogenScreen() {
   };
 
   const addCrypto = () => {
-    const amt = parseFloat(newCryptoUsd.replace(',', '.'));
-    if (!newCryptoName.trim() || isNaN(amt) || amt <= 0) return;
-    const holding: CryptoHolding = { id: uuidv4(), name: newCryptoName.trim(), amountUsd: amt };
-    persist({ ...data, cryptoHoldings: [...data.cryptoHoldings, holding] });
-    setNewCryptoName('');
-    setNewCryptoUsd('');
+    const amt = parseFloat(newAmount.replace(',', '.'));
+    if (!newName.trim() || !newSymbol.trim() || isNaN(amt) || amt <= 0) return;
+    const sym = newSymbol.trim().toUpperCase();
+    const coinId = TICKER_TO_ID[sym] ?? sym.toLowerCase();
+    const holding: CryptoHolding = { id: uuidv4(), name: newName.trim(), symbol: sym, amount: amt, coinId };
+    const next = { ...data, cryptoHoldings: [...data.cryptoHoldings, holding] };
+    persist(next);
+    fetchPrices(next.cryptoHoldings);
+    setNewName('');
+    setNewSymbol('');
+    setNewAmount('');
   };
 
   const removeCrypto = (id: string) =>
@@ -69,31 +111,41 @@ export default function VermogenScreen() {
   const removeSchuld = (id: string) =>
     persist({ ...data, schulden: data.schulden.filter((s) => s.id !== id) });
 
-  const totalCryptoUsd = data.cryptoHoldings.reduce((s, h) => s + h.amountUsd, 0);
-  const totalCryptoEur = usdEur !== null ? totalCryptoUsd * usdEur : null;
+  // Per-holding computed values
+  const holdingValues = data.cryptoHoldings.map((h) => {
+    const usdPrice = prices[h.coinId];
+    const usdValue = usdPrice != null ? h.amount * usdPrice : null;
+    const eurValue = usdValue != null && usdEur != null ? usdValue * usdEur : null;
+    return { ...h, usdPrice, usdValue, eurValue };
+  });
+
+  const totalCryptoUsd = holdingValues.every((h) => h.usdValue != null)
+    ? holdingValues.reduce((s, h) => s + (h.usdValue ?? 0), 0)
+    : null;
+  const totalCryptoEur = totalCryptoUsd != null && usdEur != null ? totalCryptoUsd * usdEur : null;
   const totalSchulden = data.schulden.reduce((s, d) => s + d.amountEur, 0);
-  const netWorth = totalCryptoEur !== null ? data.spaargeld + totalCryptoEur - totalSchulden : null;
+  const netWorth = totalCryptoEur != null ? data.spaargeld + totalCryptoEur - totalSchulden : null;
+
+  const canSnapshot = usdEur != null;
 
   const saveSnapshot = () => {
-    if (totalCryptoEur === null) return;
+    if (!canSnapshot) return;
+    const cryptoUsd = holdingValues.reduce((s, h) => s + (h.usdValue ?? 0), 0);
+    const cryptoEur = cryptoUsd * usdEur!;
     const now = new Date();
     const id = uuidv4();
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const label = now.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
     const snapshot: VermogenSnapshot = {
-      id,
-      monthKey,
-      label,
+      id, monthKey, label,
       savedAt: now.toISOString(),
       spaargeld: data.spaargeld,
-      cryptoUsd: totalCryptoUsd,
-      cryptoEur: totalCryptoEur,
+      cryptoUsd: cryptoUsd,
+      cryptoEur: cryptoEur,
       schulden: totalSchulden,
-      netWorth: data.spaargeld + totalCryptoEur - totalSchulden,
+      netWorth: data.spaargeld + cryptoEur - totalSchulden,
     };
-    const history = [snapshot, ...data.history].sort(
-      (a, b) => b.savedAt.localeCompare(a.savedAt)
-    );
+    const history = [snapshot, ...data.history].sort((a, b) => b.savedAt.localeCompare(a.savedAt));
     persist({ ...data, history });
     setExpandedSnaps((prev) => new Set(prev).add(id));
     setSavedMsg('Opgeslagen!');
@@ -152,54 +204,90 @@ export default function VermogenScreen() {
         </div>
       </div>
 
-      {/* Crypto */}
+      {/* Crypto portfolio */}
       <div style={card}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: holdingValues.length > 0 ? 4 : 12 }}>
           <span style={{ ...cardTitle, marginBottom: 0, flex: 1 }}>₿ Crypto</span>
-          {totalCryptoEur !== null && data.cryptoHoldings.length > 0 && (
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#4A90E2' }}>
+          {pricesLoading && (
+            <span style={{ fontSize: 11, color: '#bbb', marginRight: 8 }}>laden…</span>
+          )}
+          {totalCryptoEur !== null && holdingValues.length > 0 && (
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#4A90E2' }}>
               {formatEuro(totalCryptoEur)}
             </span>
           )}
         </div>
 
-        {data.cryptoHoldings.map((h) => (
+        {holdingValues.map((h) => (
           <div key={h.id} style={row}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>{h.name}</div>
-              <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                ${h.amountUsd.toLocaleString('en-US', { maximumFractionDigits: 2 })}
-                {usdEur !== null && ` → ${formatEuro(h.amountUsd * usdEur)}`}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>{h.name}</span>
+                <span style={{
+                  background: '#eef3fb', color: '#4A90E2',
+                  fontSize: 10, fontWeight: 700,
+                  padding: '1px 6px', borderRadius: 4, flexShrink: 0,
+                }}>{h.symbol}</span>
+              </div>
+              <div style={{ fontSize: 12, color: '#999', marginTop: 3 }}>
+                {fmtQty(h.amount)} {h.symbol}
+                {h.usdValue != null
+                  ? ` · $${h.usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : pricesLoading ? ' · …' : ' · prijs onbekend'}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right', marginRight: 10, flexShrink: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>
+                {h.eurValue != null ? formatEuro(h.eurValue) : (pricesLoading ? '…' : '–')}
               </div>
             </div>
             <button onClick={() => removeCrypto(h.id)} style={deleteBtn}>✕</button>
           </div>
         ))}
 
-        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-          <input
-            type="text"
-            value={newCryptoName}
-            onChange={(e) => setNewCryptoName(e.target.value)}
-            placeholder="Naam (bijv. Bitcoin)"
-            style={{ ...inlineInput, flex: 1.6 }}
-          />
-          <input
-            type="number"
-            inputMode="decimal"
-            value={newCryptoUsd}
-            onChange={(e) => setNewCryptoUsd(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addCrypto()}
-            placeholder="$ bedrag"
-            style={{ ...inlineInput, flex: 1 }}
-          />
-          <button onClick={addCrypto} style={addBtn}>+</button>
-        </div>
-        {rateError && (
-          <div style={{ fontSize: 12, color: '#e55', marginTop: 8 }}>
-            Kon wisselkoers niet ophalen. Controleer je verbinding.
+        {/* Total row when multiple coins */}
+        {holdingValues.length > 1 && (
+          <div style={{
+            display: 'flex', justifyContent: 'space-between',
+            paddingTop: 10, marginTop: 4, borderTop: '1px solid #f0f0f0',
+          }}>
+            <span style={{ fontSize: 13, color: '#999' }}>Totaal crypto</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#4A90E2' }}>
+              {totalCryptoEur != null ? formatEuro(totalCryptoEur) : '…'}
+            </span>
           </div>
         )}
+
+        {/* Add form */}
+        <div style={{ marginTop: 14 }}>
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Naam (bijv. Bitcoin)"
+            style={{ ...inlineInput, width: '100%', boxSizing: 'border-box', marginBottom: 8 }}
+          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="text"
+              value={newSymbol}
+              onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
+              placeholder="BTC"
+              maxLength={10}
+              style={{ ...inlineInput, flex: 1, minWidth: 0 }}
+            />
+            <input
+              type="number"
+              inputMode="decimal"
+              value={newAmount}
+              onChange={(e) => setNewAmount(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCrypto()}
+              placeholder="Hoeveelheid"
+              style={{ ...inlineInput, flex: 2, minWidth: 0 }}
+            />
+            <button onClick={addCrypto} style={addBtn}>+</button>
+          </div>
+        </div>
       </div>
 
       {/* Schulden */}
@@ -256,10 +344,10 @@ export default function VermogenScreen() {
       {/* Save snapshot */}
       <button
         onClick={saveSnapshot}
-        disabled={totalCryptoEur === null}
+        disabled={!canSnapshot}
         style={{
           width: '100%',
-          background: totalCryptoEur !== null ? '#4A90E2' : '#ccc',
+          background: canSnapshot ? '#4A90E2' : '#ccc',
           color: '#fff', borderRadius: 12, padding: 16,
           fontSize: 16, fontWeight: 600, marginBottom: 16,
         }}
@@ -279,13 +367,12 @@ export default function VermogenScreen() {
       {data.history.length > 0 && (
         <>
           <div style={{ fontSize: 16, fontWeight: 600, color: '#222', marginBottom: 10 }}>
-            📈 Geschiedenis
+            Geschiedenis
           </div>
           {data.history.map((snap) => {
             const open = expandedSnaps.has(snap.id);
             return (
               <div key={snap.id} style={card}>
-                {/* Header row — always visible */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <button
                     onClick={() => toggleSnap(snap.id)}
@@ -314,33 +401,23 @@ export default function VermogenScreen() {
                   <button
                     onClick={() => deleteSnapshot(snap.id)}
                     style={{ color: '#ddd', fontSize: 16, padding: '4px 2px', flexShrink: 0 }}
-                    title="Verwijder snapshot"
                   >✕</button>
                 </div>
 
-                {/* Expanded details */}
                 {open && (
                   <div style={{ marginTop: 14 }}>
                     <div style={{ height: 1, background: '#f0f0f0', marginBottom: 12 }} />
-
                     <DetailRow label="💰 Spaargeld" value={formatEuro(snap.spaargeld)} />
                     <DetailRow
                       label="₿ Crypto"
                       value={formatEuro(snap.cryptoEur)}
                       sub={snap.cryptoUsd != null
-                        ? `$${snap.cryptoUsd.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+                        ? `$${snap.cryptoUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                         : undefined}
                     />
                     <DetailRow label="💸 Schulden" value={formatEuro(snap.schulden)} valueColor="#e55" />
-
                     <div style={{ height: 1, background: '#f0f0f0', margin: '10px 0' }} />
-
-                    <DetailRow
-                      label="Netto vermogen"
-                      value={formatEuro(snap.netWorth)}
-                      valueColor="#4A90E2"
-                      bold
-                    />
+                    <DetailRow label="Netto vermogen" value={formatEuro(snap.netWorth)} valueColor="#4A90E2" bold />
                   </div>
                 )}
               </div>
@@ -350,6 +427,12 @@ export default function VermogenScreen() {
       )}
     </div>
   );
+}
+
+function fmtQty(n: number): string {
+  if (n >= 1000) return n.toLocaleString('nl-NL', { maximumFractionDigits: 2 });
+  if (n >= 1) return n.toLocaleString('nl-NL', { maximumFractionDigits: 4 });
+  return n.toLocaleString('nl-NL', { maximumSignificantDigits: 4 });
 }
 
 function DetailRow({ label, value, sub, valueColor = '#333', bold }: {

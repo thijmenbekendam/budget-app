@@ -1,7 +1,9 @@
 export interface CryptoHolding {
   id: string;
   name: string;
-  amountUsd: number;
+  symbol: string;
+  amount: number;
+  coinId: string;
 }
 
 export interface Schuld {
