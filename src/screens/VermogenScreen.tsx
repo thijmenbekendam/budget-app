@@ -19,7 +19,7 @@ export default function VermogenScreen() {
   const [usdEur, setUsdEur] = useState<number | null>(null);
   const [rateError, setRateError] = useState(false);
 
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [expandedSnaps, setExpandedSnaps] = useState<Set<string>>(new Set());
   const [savedMsg, setSavedMsg] = useState('');
 
   useEffect(() => {
@@ -83,6 +83,7 @@ export default function VermogenScreen() {
       label,
       savedAt: now.toISOString(),
       spaargeld: data.spaargeld,
+      cryptoUsd: totalCryptoUsd,
       cryptoEur: totalCryptoEur,
       schulden: totalSchulden,
       netWorth: data.spaargeld + totalCryptoEur - totalSchulden,
@@ -91,9 +92,18 @@ export default function VermogenScreen() {
       (a, b) => b.monthKey.localeCompare(a.monthKey)
     );
     persist({ ...data, history });
+    // Auto-expand the freshly saved snapshot
+    setExpandedSnaps((prev) => new Set(prev).add(monthKey));
     setSavedMsg('Opgeslagen!');
     setTimeout(() => setSavedMsg(''), 2500);
   };
+
+  const toggleSnap = (key: string) =>
+    setExpandedSnaps((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
 
   return (
     <div style={{ padding: 16, paddingBottom: 32 }}>
@@ -252,67 +262,89 @@ export default function VermogenScreen() {
 
       {/* History */}
       {data.history.length > 0 && (
-        <div style={card}>
-          <button
-            onClick={() => setHistoryOpen((v) => !v)}
-            style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', padding: 0 }}
-          >
-            <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: '#222', textAlign: 'left' }}>
-              📈 Geschiedenis
-            </span>
-            <span style={{
-              fontSize: 16, color: '#aaa',
-              transform: historyOpen ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s',
-            }}>▾</span>
-          </button>
-
-          {historyOpen && (
-            <div style={{ marginTop: 12 }}>
-              {data.history.map((snap, i) => (
-                <div key={snap.monthKey} style={{
-                  paddingTop: 12, paddingBottom: 12,
-                  borderTop: i === 0 ? '1px solid #f0f0f0' : undefined,
-                  borderBottom: '1px solid #f0f0f0',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#333', textTransform: 'capitalize' }}>
+        <>
+          <div style={{ fontSize: 16, fontWeight: 600, color: '#222', marginBottom: 10 }}>
+            📈 Geschiedenis
+          </div>
+          {data.history.map((snap) => {
+            const open = expandedSnaps.has(snap.monthKey);
+            return (
+              <div key={snap.monthKey} style={card}>
+                {/* Header row — always visible */}
+                <button
+                  onClick={() => toggleSnap(snap.monthKey)}
+                  style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', padding: 0 }}
+                >
+                  <div style={{ flex: 1, textAlign: 'left' }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#222', textTransform: 'capitalize' }}>
                       {snap.label}
-                    </span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#4A90E2' }}>
-                      {formatEuro(snap.netWorth)}
-                    </span>
-                  </div>
-                  {snap.savedAt && (
-                    <div style={{ fontSize: 11, color: '#bbb', marginBottom: 6 }}>
-                      opgeslagen op {formatSavedAt(snap.savedAt)}
                     </div>
-                  )}
-                  <div style={{ fontSize: 12, color: '#999', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <span>Spaargeld: {formatEuro(snap.spaargeld)}</span>
-                    <span>Crypto: {formatEuro(snap.cryptoEur)}</span>
-                    <span>Schulden: {formatEuro(snap.schulden)}</span>
+                    {snap.savedAt && (
+                      <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
+                        opgeslagen op {formatSavedAt(snap.savedAt)}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: '#4A90E2', marginRight: 10 }}>
+                    {formatEuro(snap.netWorth)}
+                  </span>
+                  <span style={{
+                    fontSize: 14, color: '#aaa',
+                    transform: open ? 'rotate(180deg)' : 'none',
+                    transition: 'transform 0.2s',
+                    flexShrink: 0,
+                  }}>▾</span>
+                </button>
+
+                {/* Expanded details */}
+                {open && (
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ height: 1, background: '#f0f0f0', marginBottom: 12 }} />
+
+                    <DetailRow label="💰 Spaargeld" value={formatEuro(snap.spaargeld)} />
+                    <DetailRow
+                      label="₿ Crypto"
+                      value={formatEuro(snap.cryptoEur)}
+                      sub={snap.cryptoUsd != null
+                        ? `$${snap.cryptoUsd.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+                        : undefined}
+                    />
+                    <DetailRow label="💸 Schulden" value={formatEuro(snap.schulden)} valueColor="#e55" />
+
+                    <div style={{ height: 1, background: '#f0f0f0', margin: '10px 0' }} />
+
+                    <DetailRow
+                      label="Netto vermogen"
+                      value={formatEuro(snap.netWorth)}
+                      valueColor="#4A90E2"
+                      bold
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
       )}
     </div>
   );
 }
 
-function formatSavedAt(iso: string): string {
-  const d = new Date(iso);
-  const date = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
-  const time = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-  return `${date} om ${time}`;
+function DetailRow({ label, value, sub, valueColor = '#333', bold }: {
+  label: string; value: string; sub?: string; valueColor?: string; bold?: boolean;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', paddingTop: 5, paddingBottom: 5 }}>
+      <div style={{ flex: 1 }}>
+        <span style={{ fontSize: 14, color: '#555', fontWeight: bold ? 600 : 400 }}>{label}</span>
+        {sub && <div style={{ fontSize: 11, color: '#bbb', marginTop: 1 }}>{sub}</div>}
+      </div>
+      <span style={{ fontSize: 14, fontWeight: bold ? 700 : 600, color: valueColor }}>{value}</span>
+    </div>
+  );
 }
 
-function BreakdownRow({
-  label, value, color = '#333', bold, note,
-}: {
+function BreakdownRow({ label, value, color = '#333', bold, note }: {
   label: string; value: number; color?: string; bold?: boolean; note?: string;
 }) {
   return (
@@ -325,11 +357,18 @@ function BreakdownRow({
   );
 }
 
+function formatSavedAt(iso: string): string {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+  const time = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  return `${date} om ${time}`;
+}
+
 const card: React.CSSProperties = {
   background: '#fff',
   borderRadius: 12,
   padding: 16,
-  marginBottom: 16,
+  marginBottom: 12,
   boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
 };
 

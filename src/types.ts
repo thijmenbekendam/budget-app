@@ -15,6 +15,7 @@ export interface VermogenSnapshot {
   label: string;
   savedAt: string;
   spaargeld: number;
+  cryptoUsd: number;
   cryptoEur: number;
   schulden: number;
   netWorth: number;
