@@ -44,7 +44,7 @@ export default function AddExpenseScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.label}>Amount ($)</Text>
+        <Text style={styles.label}>Amount (€)</Text>
         <TextInput
           style={styles.input}
           value={amount}

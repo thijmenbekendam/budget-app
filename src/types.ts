@@ -5,6 +5,7 @@ export type Category =
   | 'Entertainment'
   | 'Health'
   | 'Shopping'
+  | 'Fixed costs'
   | 'Other';
 
 export interface Expense {
@@ -22,6 +23,7 @@ export const CATEGORIES: Category[] = [
   'Entertainment',
   'Health',
   'Shopping',
+  'Fixed costs',
   'Other',
 ];
 
@@ -32,5 +34,6 @@ export const CATEGORY_COLORS: Record<Category, string> = {
   Entertainment: '#96CEB4',
   Health: '#FFEAA7',
   Shopping: '#DDA0DD',
+  'Fixed costs': '#F0A500',
   Other: '#98D8C8',
 };
